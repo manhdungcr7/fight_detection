@@ -15,8 +15,14 @@ import slowfast.utils.logging as logging
 logger = logging.get_logger(__name__)
 
 
-# MODEL_PATH cho Windows - sẽ được sửa khi lên Vast.ai
-MODEL_PATH = 'e:/fight_detection_cuenet/UniFormerV2/model_chkpts'
+# MODEL_PATH - Auto-detect environment
+if os.path.exists('/kaggle'):
+    # Kaggle environment
+    MODEL_PATH = '/kaggle/input/cuenet-code/UniFormerV2/UniFormerV2/model_chkpts'
+else:
+    # Local Windows
+    MODEL_PATH = 'e:/fight_detection_cuenet/UniFormerV2/model_chkpts'
+
 _MODELS = {
     "ViT-B/16": os.path.join(MODEL_PATH, "vit_b16.pth"),
     "ViT-L/14": os.path.join(MODEL_PATH, "vit_l14.pth"),

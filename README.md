@@ -1,194 +1,158 @@
-# 🥊 CUENet Fight Detection
+# CUE-Net: Violence Detection in Surveillance Videos
 
-> **CUE-Net: Violence Detection Video Analytics with Spatial Cropping, Enhanced UniformerV2 and Modified Efficient Additive Attention**
+Đồ án môn học CS231 - Nhận dạng thị giác nâng cao
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+## 📋 Giới thiệu
 
----
+Đây là repository chứa mã nguồn triển khai mô hình **CUE-Net** (CLIP-based UniFormerV2 Enhanced Network) cho bài toán phát hiện bạo lực từ video giám sát, sử dụng bộ dữ liệu **RWF-2000**.
 
-## 📊 Model Performance
+## 🏗️ Kiến trúc mô hình
 
-| Metric | Value |
-|--------|-------|
-| **Accuracy** | 90.75% |
-| **Precision** | 90.83% |
-| **Recall** | 90.75% |
-| **F1-Score** | 90.75% |
-| **ROC-AUC** | 0.969 |
+CUE-Net được xây dựng dựa trên **UniFormerV2** với backbone **CLIP ViT-L/14-336**, kết hợp:
+- **Local UniBlocks**: Trích xuất đặc trưng không gian-thời gian cục bộ
+- **Global UniBlocks (MEAA)**: Multi-Head Efficient Additive Attention cho ngữ cảnh toàn cục
+- **CLIP Pre-training**: Tận dụng tri thức từ mô hình vision-language quy mô lớn
 
-Trained on **RWF-2000** dataset (Real World Fight).
+### Thông số mô hình
+| Thông số | Giá trị |
+|----------|---------|
+| Backbone | CLIP ViT-L/14-336 |
+| Input size | 336 × 336 × 64 frames |
+| Num classes | 2 (Fight/NonFight) |
+| Total parameters | ~354M |
+| Global UniBlocks | 4 layers |
+| Hidden dim | 1024 |
+| Attention heads | 16 |
 
----
-
-## 🏗️ Architecture
-
-**CUE-Net** là kiến trúc 3 module:
-
-1. **C (Cropping)**: YOLOv8 spatial cropping - tập trung vào vùng có người
-2. **U (UniFormerV2)**: Backbone kết hợp CNN + Self-Attention  
-3. **E (Enhanced)**: MEAA (Modified Efficient Additive Attention) - giảm độ phức tạp từ O(L²) → O(L)
-
----
-
-## 📁 Project Structure
+## 📁 Cấu trúc thư mục
 
 ```
-fight_detection/
-├── api/                          # 🆕 API cho web demo
-│   ├── fight_detection_api.py    # FastAPI server
-│   ├── API_INTEGRATION_GUIDE.md  # Hướng dẫn tích hợp
-│   └── requirements.txt          # Dependencies
-├── models/                       # Model checkpoints (download separately)
-├── UniFormerV2/                  # Model code
-│   ├── exp/RWF_exp/config.yaml   # Training config
-│   ├── model_chkpts/             # CLIP weights (download separately)
-│   └── slowfast/                 # Core framework
-├── data_paths/                   # CSV files for dataset
-├── batch_inference.py            # Batch prediction
-├── inference_single_video.py     # Single video prediction
-├── evaluate_validation.py        # Validation evaluation
-├── run_cropping.py               # YOLOv8 spatial cropping
-└── create_csv.py                 # Create dataset CSV
+cs231_cuenet/
+├── UniFormerV2/                    # Core model code
+│   ├── slowfast/
+│   │   ├── config/                 # Configuration files
+│   │   ├── models/                 # Model architecture
+│   │   │   ├── uniformerv2.py      # Wrapper class
+│   │   │   ├── uniformerv2_model.py # Core model implementation
+│   │   │   └── build.py            # Model builder
+│   │   ├── datasets/               # Data loading
+│   │   └── utils/                  # Utilities
+│   ├── exp/
+│   │   └── RWF_exp/
+│   │       └── config.yaml         # Training configuration
+│   └── tools/
+│       ├── train_net.py            # Training script
+│       └── test_net.py             # Testing script
+│
+├── data_paths/                     # Dataset split files
+│   ├── train.csv
+│   ├── val.csv
+│   └── test.csv
+│
+├── models/                         # Trained checkpoints
+│   └── cuenet_rwf2000_epoch51.pyth
+│
+├── api/                            # Inference API
+│   └── fight_detection_api.py
+│
+├── visualizations/                 # Output visualizations
+│
+├── inference_single_video.py       # Single video inference
+├── evaluate_validation.py          # Evaluation script
+├── visualize_meaningful_v2.py      # Feature visualization (Eigen-CAM)
+├── create_csv.py                   # Create dataset CSV files
+└── README.md
 ```
 
----
+## ⚙️ Cài đặt
 
-## 🚀 Quick Start
+### Yêu cầu hệ thống
+- Python 3.8+
+- PyTorch 2.0+ với CUDA support
+- GPU với ≥4GB VRAM (inference) hoặc ≥48GB VRAM (training)
 
-### 1. Clone Repository
+### Các bước cài đặt
 
 ```bash
-git clone https://github.com/manhdungcr7/fight_detection.git
-cd fight_detection
-```
+# 1. Clone repository
+git clone https://github.com/manhdungcr7/cs231_cuenet.git
+cd cs231_cuenet
 
-### 2. Install Dependencies
+# 2. Cài đặt dependencies
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install fvcore iopath simplejson psutil opencv-python tensorboard
+pip install timm einops decord pytorchvideo
 
-```bash
-pip install torch torchvision
-pip install opencv-python-headless numpy tqdm
-pip install fvcore iopath yacs termcolor
-pip install pytorchvideo timm einops
-
-# Install UniFormerV2
+# 3. Cài đặt slowfast
 cd UniFormerV2
 pip install -e .
+cd ..
+
+# 4. Tải CLIP weights (ViT-L/14-336)
+# File: vit_l14_336.pth → đặt vào UniFormerV2/model_chkpts/
 ```
 
-### 3. Download Model Weights
+## 🚀 Sử dụng
 
-Download từ Google Drive và đặt vào đúng folder:
-
-| File | Size | Location |
-|------|------|----------|
-| `cuenet_rwf2000_epoch51.pyth` | ~2.5GB | `models/` |
-| `vit_l14_336.pth` | ~1.7GB | `UniFormerV2/model_chkpts/` |
-
-### 4. Run Inference
-
-```bash
-# Single video
-python inference_single_video.py --video path/to/video.mp4
-
-# Batch inference
-python batch_inference.py --input_dir path/to/videos --output_dir results/
-```
-
----
-
-## 🌐 API for Web Demo
-
-### Start API Server
-
-```bash
-cd api
-pip install -r requirements.txt
-python fight_detection_api.py --port 8000
-```
-
-### API Endpoints
-
-```http
-GET  /health              # Health check
-POST /predict             # Upload video and get prediction
-```
-
-### Example Response
-
-```json
-{
-  "success": true,
-  "prediction": "Fight",
-  "confidence": 95.32,
-  "probabilities": {
-    "NonFight": 4.68,
-    "Fight": 95.32
-  },
-  "processing_time": 2.45
-}
-```
-
-### Streamlit Integration
+### Inference trên video đơn
 
 ```python
-import requests
-
-files = {"file": open("video.mp4", "rb")}
-response = requests.post("http://localhost:8000/predict", files=files)
-result = response.json()
-
-print(f"Prediction: {result['prediction']}")
-print(f"Confidence: {result['confidence']:.2f}%")
+python inference_single_video.py --video path/to/video.avi
 ```
 
-See [API_INTEGRATION_GUIDE.md](api/API_INTEGRATION_GUIDE.md) for detailed instructions.
+### Đánh giá trên tập validation
 
----
+```python
+python evaluate_validation.py
+```
 
-## 📦 Dataset
+### Visualization (Eigen-CAM + Temporal Importance)
 
-**RWF-2000** (Real World Fight):
-- **Train**: 1600 videos (800 Fight + 800 NonFight)
-- **Validation**: 400 videos (200 Fight + 200 NonFight)
+```python
+python visualize_meaningful_v2.py --video path/to/video.avi
+```
 
-Dataset không được bao gồm trong repo. Tải từ [official source](https://github.com/mchengny/RWF2000-Video-Database-for-Violence-Detection).
+## 📊 Kết quả
 
----
+| Model | Dataset | Accuracy | F1-Score |
+|-------|---------|----------|----------|
+| CUE-Net | RWF-2000 | **89.50%** | **89.48%** |
+| FlowGate Network | RWF-2000 | 85.25% | 85.20% |
 
-## 🔧 Training (Optional)
+## 🔧 Training
 
-### On Kaggle (Free GPU)
-
-1. Upload datasets lên Kaggle Datasets
-2. Sử dụng notebook `cuenet-evaluation.ipynb`
-3. Enable GPU T4 và Run All
-
-### Local/Cloud
+Để huấn luyện mô hình từ đầu (yêu cầu GPU 48GB+):
 
 ```bash
 cd UniFormerV2
-python tools/run_net.py --cfg exp/RWF_exp/config.yaml
+
+# Training
+python tools/train_net.py \
+  --cfg exp/RWF_exp/config.yaml \
+  DATA.PATH_TO_DATA_DIR /path/to/rwf2000 \
+  NUM_GPUS 1 \
+  TRAIN.BATCH_SIZE 2
 ```
 
----
+### Cấu hình huấn luyện chính
+- **Optimizer**: AdamW (weight decay = 0.05)
+- **Learning rate**: 4e-4 với Cosine scheduler
+- **Epochs**: 51
+- **Batch size**: 2-4 (tùy VRAM)
+- **Dropout**: 0.5
 
-## 📚 References
+## 📚 Tài liệu tham khảo
 
-- **Paper**: [CUE-Net (CVPR 2024 Workshop)](https://openaccess.thecvf.com/content/CVPR2024W/ABAW/papers/Senadeera_CUE-Net_Violence_Detection_Video_Analytics_with_Spatial_Cropping_Enhanced_UniformerV2_CVPRW_2024_paper.pdf)
-- **UniFormerV2**: [GitHub](https://github.com/OpenGVLab/UniFormerV2)
-- **RWF-2000**: [Dataset](https://github.com/mchengny/RWF2000-Video-Database-for-Violence-Detection)
+1. [UniFormerV2: Spatiotemporal Learning by Arming Image ViTs with Video UniFormer](https://arxiv.org/abs/2211.09552)
+2. [Learning to Recognize Actions on Objects in Egocentric Video with Attention Dictionaries](https://arxiv.org/abs/2102.06694)
+3. [RWF-2000: An Open Large Scale Video Database for Violence Detection](https://arxiv.org/abs/1911.05913)
 
----
+## 👨‍💻 Tác giả
+
+- **Họ tên**: [Điền tên sinh viên]
+- **MSSV**: [Điền MSSV]
+- **Email**: [Điền email]
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-## 👥 Contributors
-
-- Model training & API development
-- Based on CUE-Net architecture by Damith Senadeera et al.
+MIT License

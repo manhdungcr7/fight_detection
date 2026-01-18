@@ -74,3 +74,16 @@ tmp/
 # Results
 validation_results/
 outputs/
+visualizations/
+
+# Large folders not needed
+models/
+model_flowgatenetwork/
+CUENet/
+figures/
+
+# CLIP weights
+UniFormerV2/model_chkpts/*.pth
+
+# Egg info
+slowfast.egg-info/
